@@ -75,14 +75,20 @@ def verified_checksum(checksums, archive, name):
 
 def formula_values(formula):
     values = {}
-    for field in ("url", "version", "sha256"):
+    for field in ("url", "sha256"):
         matches = re.findall(rf'^  {field} "([^"\n]+)"$', formula, flags=re.MULTILINE)
         if len(matches) != 1:
             raise ValueError(f"Expected exactly one top-level {field} in formula")
         values[field] = matches[0]
-    version_tuple(values["version"])
-    if values["url"] != archive_url(values["version"]):
-        raise ValueError("Existing formula URL does not match its version")
+    if re.search(r"^  version(?:\s|$)", formula, flags=re.MULTILINE):
+        raise ValueError("Formula version must be inferred from its release URL")
+    match = re.fullmatch(
+        rf"{re.escape(DOWNLOAD_ROOT)}/v(?P<version>{VERSION_PATTERN})/"
+        r"myna-journal_(?P=version)_macos-arm64\.tar\.gz", values["url"],
+    )
+    if match is None:
+        raise ValueError("Existing formula URL is not a canonical stable release archive")
+    values["version"] = match["version"]
     if re.fullmatch(r"[0-9a-f]{64}", values["sha256"]) is None:
         raise ValueError("Invalid existing formula SHA256")
     return values
@@ -98,7 +104,7 @@ def updated_formula(formula, version, checksum):
         if checksum != current["sha256"]:
             raise ValueError("The published archive changed without a version change")
         return formula
-    for field, value in (("url", archive_url(version)), ("version", version), ("sha256", checksum)):
+    for field, value in (("url", archive_url(version)), ("sha256", checksum)):
         formula = re.sub(rf'^  {field} "[^"\n]+"$', f'  {field} "{value}"', formula, flags=re.MULTILINE)
     return formula
 

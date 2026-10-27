@@ -23,7 +23,7 @@ def release(version="0.19.0"):
 
 def formula(version="0.19.0", checksum="a" * 64):
     return (f'class MynaJournal < Formula\n  url "{updater.archive_url(version)}"\n'
-            f'  version "{version}"\n  sha256 "{checksum}"\n'
+            f'  sha256 "{checksum}"\n'
             '  license "MIT"\n  def install\n    bin.install "mjournal"\n  end\nend\n')
 
 
@@ -85,7 +85,7 @@ class FormulaUpdateTests(unittest.TestCase):
         original = formula()
         self.assertEqual(updater.updated_formula(original, "0.19.0", "a" * 64), original)
 
-    def test_upgrade_changes_only_url_version_and_checksum(self):
+    def test_upgrade_changes_only_url_and_checksum(self):
         self.assertEqual(updater.updated_formula(formula(), "0.20.0", "b" * 64), formula("0.20.0", "b" * 64))
 
     def test_versions_are_compared_numerically(self):
@@ -97,11 +97,27 @@ class FormulaUpdateTests(unittest.TestCase):
                 updater.updated_formula(formula(), version, checksum)
 
     def test_ambiguous_or_inconsistent_formula_is_rejected(self):
-        candidates = [formula() + '  version "0.19.0"\n', formula().replace('  version "0.19.0"\n', ""),
-                      formula().replace("/v0.19.0/", "/v0.18.0/"), formula(checksum="invalid")]
+        candidates = [formula() + f'  url "{updater.archive_url("0.19.0")}"\n',
+                      formula().replace(f'  url "{updater.archive_url("0.19.0")}"\n', ""),
+                      formula(checksum="invalid")]
         for candidate in candidates:
             with self.subTest(candidate=candidate), self.assertRaises(ValueError):
                 updater.updated_formula(candidate, "0.20.0", "b" * 64)
+
+    def test_version_is_inferred_from_matching_stable_tag_and_archive_name(self):
+        self.assertEqual(updater.formula_values(formula())["version"], "0.19.0")
+        for invalid in (formula().replace("/v0.19.0/", "/v0.18.0/"),
+                        formula().replace("myna-journal_0.19.0_", "myna-journal_0.20.0_"),
+                        formula("0.19.0-rc1"), formula("00.19.0"),
+                        formula().replace(".tar.gz", ".tar.gz?download=1"),
+                        formula().replace("https://github.com/", "https://example.com/")):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                updater.formula_values(invalid)
+
+    def test_explicit_version_override_is_rejected(self):
+        for override in ("0.19.0", "0.18.0"):
+            with self.subTest(override=override), self.assertRaises(ValueError):
+                updater.updated_formula(formula() + f'  version "{override}"\n', "0.20.0", "b" * 64)
 
 
 if __name__ == "__main__":

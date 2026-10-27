@@ -25,3 +25,4 @@ else
 fi
 brew test sebiimaks/tap/myna-journal
 brew style --formula sebiimaks/tap/myna-journal
+brew audit --strict --formula sebiimaks/tap/myna-journal
