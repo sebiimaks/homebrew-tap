@@ -1,0 +1,58 @@
+name: Update MynaJournal release
+
+on:
+  schedule:
+    - cron: "23 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-mynajournal-formula
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.repository == 'sebiimaks/homebrew-tap'
+    runs-on: macos-14
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+      HOMEBREW_NO_ENV_HINTS: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Test release validation and formula updates
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+      - name: Download and verify the latest stable release
+        run: python3 scripts/update-formula.py
+      - name: Check whether an update is needed
+        id: changes
+        run: |
+          if git diff --quiet -- Formula/myna-journal.rb; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install and test the candidate before publishing
+        if: steps.changes.outputs.changed == 'true'
+        run: bash scripts/test-formula.sh
+      - name: Publish the tested formula
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Formula/myna-journal.rb
+          git commit -m 'Update MynaJournal to the latest stable release'
+          git push origin HEAD:main
