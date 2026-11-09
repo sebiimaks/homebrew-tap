@@ -1,8 +1,8 @@
 class MynaJournal < Formula
   desc "Terminal journal with editable word wrap, themes, and encrypted notes"
   homepage "https://github.com/sebiimaks/MynaJournal"
-  url "https://github.com/sebiimaks/MynaJournal/releases/download/v0.24.0/myna-journal_0.24.0_macos-arm64.tar.gz"
-  sha256 "b6245f65d2fd21442dfc400799ff4ece6ae07ecb1f67e73274d2bed285427c36"
+  url "https://github.com/sebiimaks/MynaJournal/releases/download/v0.24.1/myna-journal_0.24.1_macos-arm64.tar.gz"
+  sha256 "990d8383e4d2ddfce105e8a1bc1c2a68f8ae2acfe0c672ba6f4514ad1c581289"
   license "MIT"
 
   depends_on arch: :arm64
